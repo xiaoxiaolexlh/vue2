@@ -220,34 +220,44 @@ export function defineReactive(
  */
 export function set<T>(array: T[], key: number, value: T): T
 export function set<T>(object: object, key: string | number, value: T): T
+// 传入要设置的对象，属性名，属性值
 export function set(
   target: any[] | Record<string, any>,
   key: any,
   val: any
 ): any {
+  // 不能设置响应式属性在undefined，null，或者原始值上
   if (__DEV__ && (isUndef(target) || isPrimitive(target))) {
     warn(
       `Cannot set reactive property on undefined, null, or primitive value: ${target}`
     )
   }
+  // 不能设置响应式属性在只读对象上
   if (isReadonly(target)) {
     __DEV__ && warn(`Set operation on key "${key}" failed: target is readonly.`)
     return
   }
   const ob = (target as any).__ob__
+  // 判断是否是数组并且数组索引是否有效
   if (isArray(target) && isValidArrayIndex(key)) {
+    // 设置数组的长度
     target.length = Math.max(target.length, key)
+    // 调用vue重写的splice数组方法
     target.splice(key, 1, val)
     // when mocking for SSR, array methods are not hijacked
     if (ob && !ob.shallow && ob.mock) {
+      // 触发observe
       observe(val, false, true)
     }
     return val
   }
+  // key(属性)在指定的target(对象或其原型链)中 并且 key(属性)不在Object.prototype
   if (key in target && !(key in Object.prototype)) {
     target[key] = val
     return val
   }
+  // _isVue(private properties) a flag to mark this as a Vue instance without having to do instanceof
+  // vmCount number of vms that have this object as root $data
   if ((target as any)._isVue || (ob && ob.vmCount)) {
     __DEV__ &&
       warn(
@@ -256,14 +266,16 @@ export function set(
       )
     return val
   }
+  // 
   if (!ob) {
     target[key] = val
     return val
   }
+  // Define a reactive property on an Object.
   defineReactive(ob.value, key, val, undefined, ob.shallow, ob.mock)
   if (__DEV__) {
     ob.dep.notify({
-      type: TriggerOpTypes.ADD,
+      type: TriggerOpTypes.ADD, // TriggerOpTypes.ADD === 'add'
       target: target,
       key,
       newValue: val,
